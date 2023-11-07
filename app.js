@@ -1,13 +1,15 @@
 require("dotenv").config();
 require("./config/database").connect();
 const express = require("express");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+
+const User = require("./model/user");
 const auth = require("./middleware/auth");
 
 const app = express();
 
-app.use(express.json());
-
-const User = require("./model/user");
+app.use(express.json({ limit: "50mb" }));
 
 app.post("/register", async (req, res) => {
   try {
@@ -23,7 +25,7 @@ app.post("/register", async (req, res) => {
       return res.status(409).send("User Already Exist. Please Login");
     }
 
-    encryptedPassword = await bcrypt.hash(password, 10);
+    const encryptedPassword = await bcrypt.hash(password, 10);
 
     const user = await User.create({
       first_name,
@@ -55,7 +57,6 @@ app.post("/login", async (req, res) => {
     if (!(email && password)) {
       res.status(400).send("All input is required");
     }
-
     const user = await User.findOne({ email });
 
     if (user && (await bcrypt.compare(password, user.password))) {
@@ -77,8 +78,19 @@ app.post("/login", async (req, res) => {
   }
 });
 
-app.post("/welcome", auth, (req, res) => {
+app.get("/welcome", auth, (req, res) => {
   res.status(200).send("Welcome 🙌 ");
+});
+
+app.use("*", (req, res) => {
+  res.status(404).json({
+    success: "false",
+    message: "Page not found",
+    error: {
+      statusCode: 404,
+      message: "You reached a route that is not defined on this server",
+    },
+  });
 });
 
 module.exports = app;
